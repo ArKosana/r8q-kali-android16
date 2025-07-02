@@ -1,0 +1,43 @@
+
+name: 📦 Build LineageOS 23 + Kali
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+
+    - name: Set up environment
+      run: |
+        sudo apt update
+        sudo apt install -y repo git-core gnupg flex bison build-essential           zip curl zlib1g-dev gcc-multilib g++-multilib libc6-dev-i386           lib32ncurses5-dev x11proto-core-dev libx11-dev lib32z-dev ccache           libgl1-mesa-dev libxml2-utils xsltproc unzip openjdk-17-jdk
+
+    - name: Sync LineageOS 23 Source (Android 16)
+      run: |
+        mkdir -p ~/android/lineage && cd ~/android/lineage
+        repo init -u https://github.com/LineageOS/android.git -b lineage-23.0
+        repo sync -j$(nproc)
+
+    - name: Clone device tree, kernel, and vendor for r8q
+      run: |
+        cd ~/android/lineage
+        git clone https://github.com/ArKosana/android_device_samsung_r8q device/samsung/r8q
+        git clone https://github.com/ArKosana/android_kernel_samsung_sm8250 kernel/samsung/r8q
+        git clone https://github.com/ArKosana/proprietary_vendor_samsung_r8q vendor/samsung/r8q
+
+    - name: Start Build
+      run: |
+        cd ~/android/lineage
+        . build/envsetup.sh
+        lunch lineage_r8q-userdebug
+        mka bacon
+
+    - name: Upload ROM
+      uses: actions/upload-artifact@v3
+      with:
+        name: lineage-23.0-UNOFFICIAL-r8q-kali-magisk
+        path: out/target/product/r8q/*.zip
